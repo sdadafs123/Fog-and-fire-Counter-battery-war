@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>FAF: Counter-Battery War - v5.4 (PVP & Ponder Edition)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        tactical: {
+                            bg: '#0a0d12', panel: '#121824', border: '#1f293d',
+                            green: '#00ff66', amber: '#ffaa00', red: '#ff3333',
+                            blue: '#00ccff', dark: '#05070a'
+                        }
+                    },
+                    fontFamily: { mono: ['Share Tech Mono', 'monospace'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body {
+            height: 100%; height: 100dvh; margin: 0; padding: 0;
+            background-color: #0a0d12; color: #8a99ad;
+            font-family: 'Share Tech Mono', monospace;
+            user-select: none; overflow: hidden; overscroll-behavior: none;
+        }
+        .grid-cell { transition: all 0.15s ease; cursor: pointer; min-height: 0; min-width: 0; }
+        .grid-cell:active { border-color: #00ff66; box-shadow: 0 0 6px rgba(0,255,102,0.4); }
+        ::-webkit-scrollbar { width: 3px; height: 3px; }
+        ::-webkit-scrollbar-track { background: #0a0d12; }
+        ::-webkit-scrollbar-thumb { background: #1f293d; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00ff66; }
+        
+        .btn-fire-ready {
+            background-color: #dc2626 !important; color: white !important; border-color: #f87171 !important;
+            box-shadow: 0 0 12px rgba(220, 38, 38, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.15);
+            animation: pulse-red 1.5s infinite; cursor: pointer !important;
+        }
+        
+        .cbt-slow { animation: pulse-amber 1.5s infinite; }
+        .cbt-fast { animation: rapid-red 0.3s infinite; }
+        @keyframes pulse-amber { 0% { box-shadow: 0 0 4px rgba(255,170,0,0.3); } 50% { box-shadow: 0 0 10px rgba(255,170,0,0.8); } 100% { box-shadow: 0 0 4px rgba(255,170,0,0.3); } }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 8px rgba(220, 38, 38, 0.5); } 50% { box-shadow: 0 0 16px rgba(220, 38, 38, 1); } 100% { box-shadow: 0 0 8px rgba(220, 38, 38, 0.5); } }
+        @keyframes rapid-red { 0%, 100% { background-color: rgba(220,38,38,0.2); } 50% { background-color: rgba(220,38,38,0.9); color: white; box-shadow: 0 0 15px rgba(220,38,38,1); } }
+        
+        .modal-blur { backdrop-filter: blur(8px); }
+        .safe-top { padding-top: env(safe-area-inset-top); }
+        .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        .panel-scroll { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+    </style>
+</head>
+<body class="flex flex-col overflow-hidden text-[11px] safe-top safe-bottom">
+
+    <!-- INIT MODAL (MODE SELECTION) -->
+    <div id="init-modal" class="fixed inset-0 bg-[#0a0d12] z-[100] flex flex-col items-center justify-center p-6 modal-blur">
+        <i class="fa-solid fa-crosshairs text-6xl text-tactical-green mb-4 animate-pulse"></i>
+        <h1 class="text-2xl font-bold text-white tracking-widest mb-1 text-center">FAF: CBW</h1>
+        <p class="text-[10px] text-gray-500 mb-8 tracking-widest">TACTICAL ARTILLERY SIMULATOR</p>
+        
+        <button onclick="startGame('bot')" class="w-full max-w-xs py-3 mb-4 bg-tactical-panel border border-tactical-green hover:bg-tactical-green/20 text-tactical-green font-bold rounded tracking-widest flex items-center justify-center gap-2">
+            <i class="fa-solid fa-microchip"></i> ĐẤU VỚI BOT
+        </button>
+        <button onclick="showPaPSetup()" class="w-full max-w-xs py-3 bg-tactical-panel border border-tactical-blue hover:bg-tactical-blue/20 text-tactical-blue font-bold rounded tracking-widest flex items-center justify-center gap-2">
+            <i class="fa-solid fa-users"></i> PVP (CHUYỀN TAY)
+        </button>
+        
+        <div id="pap-setup-container" class="hidden w-full max-w-xs mt-6 p-4 border border-tactical-border bg-tactical-dark rounded">
+            <div id="setup-p1">
+                <p class="text-[10px] text-tactical-green font-bold mb-3 text-center">BẢO MẬT PLAYER 1</p>
+                <input type="password" id="p1-pin" placeholder="Mã PIN P1 (vd: 1234)" class="w-full bg-[#05070a] border border-gray-600 text-tactical-green p-2 text-center text-sm mb-4 rounded tracking-widest" inputmode="numeric" maxlength="4">
+                <button onclick="confirmP1Setup()" class="w-full py-2 bg-tactical-green text-black font-bold rounded tracking-widest">XÁC NHẬN P1</button>
+            </div>
+            <div id="setup-p2" class="hidden">
+                <p class="text-[10px] text-tactical-blue font-bold mb-3 text-center">BẢO MẬT PLAYER 2</p>
+                <input type="password" id="p2-pin" placeholder="Mã PIN P2 (vd: 5678)" class="w-full bg-[#05070a] border border-gray-600 text-tactical-blue p-2 text-center text-sm mb-4 rounded tracking-widest" inputmode="numeric" maxlength="4">
+                <button onclick="startGame('pap')" class="w-full py-2 bg-tactical-blue text-black font-bold rounded tracking-widest">XÁC NHẬN P2 & BẮT ĐẦU</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRIVACY CURTAIN MODAL (FOR PaP) -->
+    <div id="curtain-modal" class="hidden fixed inset-0 bg-black z-[90] flex flex-col items-center justify-center p-6 modal-blur">
+        <i class="fa-solid fa-lock text-5xl text-gray-500 mb-6"></i>
+        <h2 id="curtain-title" class="text-xl font-bold text-tactical-blue tracking-widest mb-2 text-center">CHUYỂN GIAO THIẾT BỊ</h2>
+        <p class="text-[10px] text-gray-400 mb-8 text-center">Yêu cầu nhập mã PIN để mở khóa sa bàn.</p>
+        <input type="password" id="curtain-pin" class="w-full max-w-xs bg-tactical-dark border border-gray-600 text-white p-4 text-center text-xl tracking-[1em] mb-6 rounded" inputmode="numeric" maxlength="4">
+        <button onclick="unlockCurtain()" class="w-full max-w-xs py-3 bg-tactical-green hover:bg-green-400 text-black font-bold rounded tracking-widest text-sm">XÁC NHẬN MỞ KHÓA</button>
+        <p id="curtain-error" class="text-red-500 text-xs mt-4 hidden font-bold animate-bounce">MÃ PIN KHÔNG HỢP LỆ!</p>
+    </div>
+
+    <!-- HEADER compact -->
+    <header class="bg-tactical-panel border-b border-tactical-border px-1.5 py-1.5 flex justify-between items-center z-20 shrink-0">
+        <div class="flex items-center gap-1 min-w-0">
+            <i class="fa-solid fa-crosshairs text-tactical-green text-[10px] animate-pulse shrink-0"></i>
+            <div class="min-w-0 flex items-center gap-1.5">
+                <div>
+                    <h1 id="header-title" class="text-[10px] font-bold tracking-wider text-white leading-tight truncate">FAF:CBW</h1>
+                    <p id="header-subtitle" class="text-[7px] text-gray-500 leading-tight">v5.4</p>
+                </div>
+                <!-- BOOK MANUAL BUTTON -->
+                <button onclick="openManual()" class="bg-blue-900/40 text-tactical-blue border border-blue-500/50 rounded px-1.5 py-0.5 text-[8px] font-bold hover:bg-blue-800/60 active:bg-blue-700/80 transition-colors shadow-[0_0_5px_rgba(0,204,255,0.3)] shrink-0">
+                    <i class="fa-solid fa-book"></i> H.DẪN
+                </button>
+            </div>
+        </div>
+        <!-- 4 Trạng thái - Đã ép nhỏ kích thước -->
+        <div class="flex items-center gap-1 shrink-0">
+            <div class="text-center bg-tactical-dark px-1 py-0.5 rounded border border-tactical-border min-w-[42px]">
+                <span class="text-gray-500 text-[6px] block leading-none">BUDGET</span>
+                <span id="player-v" class="text-tactical-amber font-bold text-[9px] leading-tight">400</span>
+            </div>
+            <div class="text-center bg-tactical-dark px-1 py-0.5 rounded border border-tactical-border min-w-[36px]">
+                <span class="text-gray-500 text-[6px] block leading-none">SHOTS</span>
+                <span id="shots-left" class="text-tactical-green font-bold text-[9px] leading-tight">2/2</span>
+            </div>
+            <div class="text-center bg-tactical-dark px-1 py-0.5 rounded border border-tactical-border min-w-[36px]">
+                <span class="text-gray-500 text-[6px] block leading-none">SAB</span>
+                <span id="sab-hp" class="text-tactical-green font-bold text-[9px] leading-tight">8/8</span>
+            </div>
+            <div class="text-center bg-tactical-dark px-1 py-0.5 rounded border border-tactical-border min-w-[32px]">
+                <span class="text-gray-500 text-[6px] block leading-none">TURN</span>
+                <span id="turn-count" class="text-tactical-blue font-bold text-[9px] leading-tight">1</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 min-h-0 flex flex-row overflow-hidden">
+
+        <!-- ===== LEFT HALF: MAP ===== -->
+        <div class="w-1/2 min-w-0 flex flex-col p-1 relative border-r border-tactical-border bg-[#06080b]">
+            <div class="flex flex-wrap justify-between items-center gap-1 mb-1 shrink-0">
+                <div class="flex gap-0.5">
+                    <button id="tab-enemy" onclick="switchMap('enemy')"
+                        class="px-2 py-1 rounded bg-tactical-red text-white font-bold border border-red-500/30 flex items-center gap-0.5 text-[9px]">
+                        <i class="fa-solid fa-satellite-dish"></i> ENEMY
+                    </button>
+                    <button id="tab-home" onclick="switchMap('home')"
+                        class="px-2 py-1 rounded bg-tactical-panel text-gray-400 border border-tactical-border flex items-center gap-0.5 text-[9px]">
+                        <i class="fa-solid fa-shield-halved"></i> HOME
+                    </button>
+                </div>
+                <span id="cbt-status" class="text-tactical-amber font-bold text-[8px] bg-amber-500/10 px-1 py-0.5 rounded border border-amber-500/20 truncate max-w-[110px]">
+                    <i class="fa-solid fa-clock-rotate-left"></i> CBT: CLEAR
+                </span>
+            </div>
+
+            <div id="macro-view" class="flex-1 min-h-0 bg-tactical-dark rounded border border-tactical-border p-0.5 relative flex items-center justify-center overflow-hidden">
+                <div class="grid grid-cols-7 grid-rows-10 gap-0.5 w-full h-full" id="macro-grid-container"></div>
+            </div>
+
+            <!-- MICRO PANEL overlay on left -->
+            <div id="micro-panel" class="hidden absolute inset-1 bg-tactical-dark/95 border border-tactical-green rounded p-1.5 z-30 flex flex-col backdrop-blur">
+                <div class="flex justify-between items-center border-b border-tactical-border pb-1 shrink-0">
+                    <div>
+                        <h2 class="text-tactical-green font-bold text-[10px]">MICRO: <span id="micro-grid-id" class="text-white"></span></h2>
+                        <p class="text-[8px] text-gray-400" id="micro-hint">Chọn ô 1x1</p>
+                    </div>
+                    <button onclick="closeMicroPanel()" class="text-gray-400 active:text-red-500 text-lg w-7 h-7 flex items-center justify-center">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="flex-1 min-h-0 flex items-center justify-center py-1">
+                    <div class="grid grid-cols-5 grid-rows-5 gap-0.5 w-full max-w-[220px] aspect-square" id="micro-grid-container"></div>
+                </div>
+                <div class="pt-1 border-t border-tactical-border text-center shrink-0">
+                    <span class="text-tactical-amber font-bold text-[9px]" id="selected-micro-coord">AWAITING...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== RIGHT HALF: CONTROLS ===== -->
+        <div class="w-1/2 min-w-0 bg-tactical-panel flex flex-col gap-1 p-1.5 overflow-y-auto panel-scroll h-full">
+
+            <!-- FIRE CALLING -->
+            <div class="bg-tactical-dark p-1 rounded border border-tactical-border flex flex-col gap-0.5 shrink-0">
+                <span class="text-[7px] text-gray-400 font-bold border-b border-tactical-border pb-0.5 tracking-widest">FIRE CALLING</span>
+                <div id="fire-calling-container" class="flex flex-col gap-0.5 max-h-[70px] overflow-y-auto panel-scroll"></div>
+            </div>
+
+            <!-- ORDNANCE -->
+            <div class="bg-tactical-dark p-1 rounded border border-tactical-border flex flex-col shrink-0 max-h-[120px]">
+                <span class="text-[7px] text-gray-400 font-bold mb-0.5 flex justify-between items-center border-b border-tactical-border pb-0.5">
+                    <span class="tracking-widest">ORDNANCE</span>
+                    <span id="selected-ammo-cost" class="text-tactical-amber font-bold">COST: --</span>
+                </span>
+                <div class="flex-1 overflow-y-auto panel-scroll space-y-0.5 pr-0.5 mt-0.5" id="ordnance-list"></div>
+            </div>
+
+            <!-- Actions 2x2 -->
+            <div class="grid grid-cols-2 gap-1 shrink-0">
+                <button onclick="executeForwardObserver()" class="p-1.5 bg-tactical-blue/20 border border-tactical-blue/40 rounded active:bg-tactical-blue/40 text-center min-h-[28px]">
+                    <div class="text-tactical-blue font-bold text-[8px] leading-tight"><i class="fa-solid fa-binoculars"></i> FO 1V</div>
+                </button>
+                <button id="btn-scout" onclick="startScoutPlane()" class="p-1.5 bg-amber-900/30 border border-amber-500/40 rounded active:bg-amber-800/50 text-center transition-all min-h-[28px]">
+                    <div class="text-tactical-amber font-bold text-[8px] leading-tight"><i class="fa-solid fa-plane"></i> SCOUT 60V</div>
+                </button>
+                <button id="btn-dir-move" onclick="startDirMove()" class="p-1.5 bg-blue-900/30 border border-blue-500/40 rounded active:bg-blue-800/50 text-center transition-all min-h-[28px]">
+                    <div class="text-tactical-blue font-bold text-[8px] leading-tight"><i class="fa-solid fa-arrows-up-down-left-right"></i> DIR 10V</div>
+                </button>
+                <button onclick="executeEvac()" class="p-1.5 bg-red-900/30 border border-red-500/40 rounded active:bg-red-800/50 text-center min-h-[28px]">
+                    <div class="text-red-400 font-bold text-[8px] leading-tight"><i class="fa-solid fa-triangle-exclamation"></i> EVAC 65V</div>
+                </button>
+            </div>
+
+            <!-- TARGETING -->
+            <div class="bg-[#05070a] p-1 rounded border border-tactical-border relative shadow-inner shrink-0">
+                <button onclick="toggleTargeting()" id="btn-prepare-fire"
+                    class="w-full py-1.5 bg-tactical-panel border border-gray-600 text-gray-400 font-bold text-[9px] uppercase active:bg-gray-800 rounded transition-colors tracking-widest">
+                    <i class="fa-solid fa-power-off"></i> PREPARE FIRE
+                </button>
+                <div id="targeting-console" class="hidden mt-1 border-t border-gray-800 pt-1">
+                    <div class="flex gap-1">
+                        <div class="w-1/2">
+                            <label class="text-[7px] text-gray-500 block">MACRO</label>
+                            <input type="text" id="input-macro" placeholder="3B" maxlength="2" oninput="validateFire()"
+                                class="w-full bg-tactical-panel border border-gray-600 text-tactical-green p-1 text-center text-xs font-bold uppercase focus:outline-none focus:border-tactical-green rounded">
+                        </div>
+                        <div class="w-1/2">
+                            <label class="text-[7px] text-gray-500 block">MICRO</label>
+                            <input type="text" id="input-micro" placeholder="2:3" maxlength="3" oninput="validateFire()"
+                                class="w-full bg-tactical-panel border border-gray-600 text-tactical-blue p-1 text-center text-xs font-bold focus:outline-none focus:border-tactical-blue rounded">
+                        </div>
+                    </div>
+                    <button id="btn-fire" disabled onclick="executeManualFire()"
+                        class="w-full mt-1 py-2 bg-gray-800 text-gray-600 font-bold border border-gray-700 transition-all duration-300 cursor-not-allowed uppercase tracking-widest rounded-sm text-[10px]">
+                        [ FIRE! ]
+                    </button>
+                </div>
+            </div>
+
+            <!-- LOGBOOK ĐỘC LẬP -->
+            <div class="flex-1 min-h-[80px] bg-tactical-dark p-1 rounded border border-tactical-border flex flex-col shadow-inner shrink-0 relative">
+                <span class="text-[7px] text-gray-400 font-bold border-b border-tactical-border pb-0.5 tracking-widest flex justify-between items-center">
+                    <span>LOGBOOK / PONDER</span><i class="fa-solid fa-align-left text-tactical-green"></i>
+                </span>
+                <div id="combat-log" class="flex-1 overflow-y-auto panel-scroll font-mono text-[7px] space-y-0.5 text-gray-300 leading-tight mt-0.5 pr-0.5 pb-1">
+                    <!-- Logs sẽ đổ vào đây -->
+                </div>
+            </div>
+
+            <!-- END TURN BUTTON -->
+            <button onclick="endTurn()" class="w-full shrink-0 py-2 bg-tactical-green active:bg-green-400 text-black font-bold rounded flex items-center justify-center gap-1.5 text-[10px] tracking-widest mt-auto">
+                <i class="fa-solid fa-forward-step"></i> END TURN
+            </button>
+        </div>
+    </main>
+
+    <!-- MANUAL MODAL -->
+    <div id="manual-modal" class="hidden fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4 modal-blur">
+        <div class="bg-tactical-panel border-2 border-tactical-blue rounded-lg max-w-sm w-full p-4 flex flex-col max-h-[80vh] shadow-2xl">
+            <div class="flex justify-between items-center mb-3 border-b border-tactical-border pb-2">
+                <h2 class="text-tactical-blue font-bold text-sm tracking-wider"><i class="fa-solid fa-book-open"></i> SỔ TAY TÁC CHIẾN</h2>
+                <button onclick="closeManual()" class="text-gray-400 active:text-red-500 text-lg w-6 h-6 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto space-y-2 panel-scroll pr-1">
+                <button onclick="playTutorial(1)" class="w-full text-left p-2 rounded bg-tactical-dark border border-tactical-border hover:border-tactical-blue transition-colors">
+                    <span class="text-tactical-green font-bold text-[10px] block">1. KHỞI ĐỘNG CƠ BẢN</span>
+                </button>
+                <button onclick="playTutorial(2)" class="w-full text-left p-2 rounded bg-tactical-dark border border-tactical-border hover:border-tactical-blue transition-colors">
+                    <span class="text-tactical-amber font-bold text-[10px] block">2. ĐẠN DƯỢC & GIÁP</span>
+                </button>
+                <button onclick="playTutorial(3)" class="w-full text-left p-2 rounded bg-tactical-dark border border-tactical-border hover:border-tactical-blue transition-colors">
+                    <span class="text-red-400 font-bold text-[10px] block">3. PHẢN PHÁO (CBT)</span>
+                </button>
+                <button onclick="playTutorial(4)" class="w-full text-left p-2 rounded bg-tactical-dark border border-tactical-border hover:border-tactical-blue transition-colors">
+                    <span class="text-purple-400 font-bold text-[10px] block">4. GỌI PHÁO (Fire Call)</span>
+                </button>
+                <button onclick="playTutorial(5)" class="w-full text-left p-2 rounded bg-tactical-dark border border-tactical-border hover:border-tactical-blue transition-colors">
+                    <span class="text-blue-400 font-bold text-[10px] block">5. BẢNG TRA ĐẠN DƯỢC</span>
+                </button>
+            </div>
+            <button onclick="closeManual()" class="w-full py-2 bg-gray-800 text-gray-300 font-bold rounded uppercase tracking-widest text-[9px] mt-4 border border-gray-700">ĐÓNG</button>
+        </div>
+    </div>
+
+    <!-- GAME OVER MODAL -->
+    <div id="game-modal" class="hidden fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4 modal-blur">
+        <div class="bg-tactical-panel border-2 border-tactical-green rounded-lg max-w-sm w-full p-6 text-center space-y-4 shadow-2xl transform transition-transform">
+            <i id="modal-icon" class="fa-solid fa-shield-cat text-4xl text-tactical-green drop-shadow-[0_0_10px_rgba(0,255,102,0.5)]"></i>
+            <h2 id="modal-title" class="text-lg font-bold text-white tracking-wider">REPORT</h2>
+            <p id="modal-body" class="text-xs text-gray-300 leading-relaxed"></p>
+            <button onclick="closeModal()" id="modal-close-btn" class="px-6 py-2 bg-tactical-green hover:bg-green-400 text-black font-bold rounded w-full tracking-widest uppercase shadow-lg shadow-green-900/50 mt-2">ACKNOWLEDGE</button>
+        </div>
+    </div>
+
+    <script>
+        const COLS = [1, 2, 3, 4, 5, 6, 7];
+        const ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+
+        const ORDNANCE = [
+            { id: 'HE', name: 'HE Shell', cost: 10, category: 'Kinetic', r: '3x3' },
+            { id: 'MXHE', name: 'MXHE', cost: 18, category: 'Kinetic', r: 'Macro' },
+            { id: 'LITE', name: 'LITE', cost: 8, category: 'Kinetic', r: '1x1' },
+            { id: 'AP', name: 'AP Shell', cost: 10, category: 'Armor', r: '1x1' },
+            { id: 'APHE', name: 'APHE', cost: 15, category: 'Armor', r: '3x3(AP)' },
+            { id: 'SEIS', name: 'SEIS', cost: 26, category: 'Armor', r: '5x5(AP)' },
+            { id: 'SOND', name: 'SOND', cost: 3, category: 'Recon', r: '1x1' },
+            { id: 'FOGG', name: 'FOGG Smoke', cost: 2, category: 'Support', r: 'Macro' },
+            { id: 'LUMN', name: 'LUMN Flare', cost: 2, category: 'Support', r: 'Macro' },
+            { id: 'ZERO', name: 'ZERO Nuke', cost: 666, category: 'Doomsday', r: 'GLOBAL' }
+        ];
+
+        const UNIT_TYPES = [
+            { code: 'SAB', count: 1, hp: 8, armored: true, isSAB: true },
+            { code: 'FDC', count: 1, hp: 1, armored: true }, { code: 'FDC', count: 1, hp: 1, armored: false },
+            { code: 'AA', count: 1, hp: 1, armored: true }, { code: 'AA', count: 1, hp: 1, armored: false },
+            { code: 'ART', count: 2, hp: 1, armored: true }, { code: 'ART', count: 2, hp: 1, armored: false },
+            { code: 'REC', count: 2, hp: 1, armored: false }, { code: 'INF', count: 4, hp: 1, armored: false }
+        ];
+
+        let sys = { mode: 'bot', currentPlayer: 1, p1Pin: '', p2Pin: '' };
+        let gameState = {
+            activeTab: 'enemy', playerV: 400, aiV: 400, turn: 1, shotsLeft: 2,
+            passiveTurns: 0, gameOver: false,
+            selectedAmmo: ORDNANCE[0], fireCallCards: [], aiCards: [],
+            playerUnits: [], aiUnits: [], 
+            playerCbtTarget: null, aiCbtTarget: null, 
+            playerIntelMap: {}, aiIntelMap: {}, 
+            selectedMacro: null, isDirMoveMode: false,
+            isScoutMode: false, scoutClicksLeft: 0,
+            lastPlayerFDC: 2, lastAiFDC: 2, lastPlayerRECON: 2, lastAiRECON: 2,
+            aiMemory: [], playerMemory: [], foggCells: [],
+            playerLogs: ['<span class="text-tactical-green">> SYSTEM READY.</span>'], 
+            aiLogs: ['<span class="text-tactical-green">> SYSTEM READY.</span>']
+        };
+
+        // --- INIT & SETUP LOGIC ---
+        function showPaPSetup() { document.getElementById('pap-setup-container').classList.remove('hidden'); }
+        function confirmP1Setup() {
+            sys.p1Pin = document.getElementById('p1-pin').value.trim();
+            document.getElementById('setup-p1').classList.add('hidden');
+            document.getElementById('setup-p2').classList.remove('hidden');
+        }
+        function startGame(mode) {
+            sys.mode = mode;
+            if (mode === 'pap') { sys.p2Pin = document.getElementById('p2-pin').value.trim(); document.getElementById('header-subtitle').innerText = "PvP (PaP)"; } 
+            else { document.getElementById('header-subtitle').innerText = "BOT v5.4"; }
+            document.getElementById('init-modal').classList.add('hidden'); autoDeploy();
+        }
+
+        // --- LOGBOOK LOGIC ---
+        function log(msg) {
+            if (sys.currentPlayer === 1) gameState.playerLogs.push(msg);
+            else gameState.aiLogs.push(msg);
+            renderLogbook();
+        }
+        
+        function logOpponent(msg) {
+            if (sys.mode === 'bot') return; 
+            if (sys.currentPlayer === 1) gameState.aiLogs.push(`<span class="text-red-400">${msg}</span>`);
+            else gameState.playerLogs.push(`<span class="text-red-400">${msg}</span>`);
+        }
+
+        function renderLogbook() {
+            let b = document.getElementById('combat-log');
+            let logs = sys.currentPlayer === 1 ? gameState.playerLogs : gameState.aiLogs;
+            b.innerHTML = logs.map(m => `<div>${m}</div>`).join('');
+            b.scrollTop = b.scrollHeight;
+        }
+
+        /* PONDER TUTORIAL */
+        let tutorialTimeout = null;
+        function openManual() { document.getElementById('manual-modal').classList.remove('hidden'); }
+        function closeManual() { document.getElementById('manual-modal').classList.add('hidden'); }
+        function playTutorial(chapter) {
+            closeManual(); if(tutorialTimeout) clearTimeout(tutorialTimeout);
+            let msgs = [];
+            if (chapter===1) msgs = ["[PONDER] Giao thức Tân Binh...", "> Nhiệm vụ: Hủy diệt SAB địch.", "> Bấm Macro 7x10 sẽ mở Micro 5x5.", "> Nhập đủ Macro + Micro mới được nã pháo."];
+            else if (chapter===2) msgs = ["[PONDER] Dữ liệu Khí tài...", "> SAB, FDC, AA, ART có GIÁP.", "> Đạn HE bị nảy (Ricochet) gây 0 Dmg lên giáp.", "> Dùng AP, APHE, SEIS để xuyên giáp."];
+            else if (chapter===3) msgs = ["[PONDER] Sinh tồn & Phản pháo...", "> Bắn pháo sẽ bị Radar địch khóa (CBT).", "> CBT nháy ĐỎ: Di dời ngay!", "> Dùng DIR (10V) nhảy 10 ô, EVAC nhảy xa."];
+            else if (chapter===4) msgs = ["[PONDER] Khai thác Budget...", "> Xem bảng FIRE CALLING (Bộ binh gọi pháo).", "> Bắn đúng loại đạn & hướng để nhận thưởng V."];
+            else if (chapter===5) msgs = [
+                "[PONDER] ORDNANCE MATRIX...", "> HE(10V): Nổ 3x3. Không xuyên giáp.", "> MXHE(18V): Nổ Macro 5x5. Không xuyên giáp.",
+                "> AP(10V): Xuyên giáp 1x1.", "> APHE(15V): Tâm 1x1 xuyên giáp, viền HE 3x3.",
+                "> SEIS(26V): Tâm 3x3 xuyên giáp, viền HE 5x5.", "> SOND(3V): Quét tín hiệu. FOGG(2V): Thả khói.",
+                "> LUMN(2V): Pháo sáng. Soi rõ toàn bộ 1 ô Macro (yêu cầu diệt sạch AA địch)."
+            ];
+            let i = 0;
+            function step() {
+                if(i < msgs.length) {
+                    log(`<span class="text-tactical-blue font-bold tracking-tight">${msgs[i]}</span>`);
+                    i++; tutorialTimeout = setTimeout(step, 2000);
+                }
+            }
+            log(`<div class="border-t border-tactical-blue/50 my-1 w-full"></div>`); step();
+        }
+
+        // --- MATH UTILS ---
+        function getDist(c1, r1, x1, y1, c2, r2, x2, y2) {
+            let cx1 = COLS.indexOf(parseInt(c1)) * 5 + x1, cy1 = ROWS.indexOf(r1) * 5 + y1;
+            let cx2 = COLS.indexOf(parseInt(c2)) * 5 + x2, cy2 = ROWS.indexOf(r2) * 5 + y2;
+            return Math.sqrt(Math.pow(cx2-cx1,2) + Math.pow(cy2-cy1,2));
+        }
+        function getDirection(c1, r1, x1, y1, c2, r2, x2, y2) {
+            let cx1 = COLS.indexOf(parseInt(c1)) * 5 + x1, cy1 = ROWS.indexOf(r1) * 5 + y1;
+            let cx2 = COLS.indexOf(parseInt(c2)) * 5 + x2, cy2 = ROWS.indexOf(r2) * 5 + y2;
+            let dx = cx2 - cx1, dy = cy2 - cy1;
+            if (dx === 0 && dy === 0) return 'NONE';
+            if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? 'E' : 'W'; else return dy > 0 ? 'S' : 'N';
+        }
+
+        // --- DEPLOY & LOGIC ---
+        function autoDeploy() {
+            gameState.playerUnits = genFleet(); gameState.aiUnits = genFleet();
+            renderOrdnance(); genFireCards(gameState.playerUnits, gameState.fireCallCards); genFireCards(gameState.aiUnits, gameState.aiCards);
+            updateUI(); renderMacroGrid(); renderLogbook();
+        }
+
+        function genFleet() {
+            let units = [];
+            UNIT_TYPES.forEach(t => {
+                for (let i=0; i<t.count; i++) {
+                    let placed = false;
+                    while(!placed) {
+                        let c = COLS[Math.floor(Math.random()*COLS.length)], r = ROWS[Math.floor(Math.random()*ROWS.length)];
+                        let x = Math.floor(Math.random()*5), y = Math.floor(Math.random()*5);
+                        if (!units.some(u => u.col===c && u.row===r && u.x===x && u.y===y)) { units.push({code: t.code, num: i+1, col: c, row: r, x: x, y: y, hp: t.hp, armored: t.armored, isSAB: t.isSAB||false}); placed = true; }
+                    }
+                }
+            }); return units;
+        }
+
+        function genFireCards(unitArr, cardArr) {
+            let infs = unitArr.filter(u => u.code === 'INF' && u.hp > 0);
+            cardArr.length = 0;
+            if(infs.length > 0) {
+                let cardsGenerated = 0, failsafe = 0;
+                // Chỉ cho phép yêu cầu đạn tấn công
+                let validAmmoList = ORDNANCE.filter(o => !['ZERO','SOND','FOGG','LUMN'].includes(o.id));
+                
+                while (cardsGenerated < 3 && failsafe < 50) {
+                    failsafe++;
+                    let inf = infs[Math.floor(Math.random()*infs.length)], ammo = validAmmoList[Math.floor(Math.random()*validAmmoList.length)];
+                    let dMin = Math.floor(Math.random()*5)+2, dMax = dMin+5;
+                    let absX = COLS.indexOf(parseInt(inf.col)) * 5 + inf.x, absY = ROWS.indexOf(inf.row) * 5 + inf.y;
+                    let validDirs = [];
+                    if (absY >= dMin) validDirs.push('N'); if (49 - absY >= dMin) validDirs.push('S');
+                    if (absX >= dMin) validDirs.push('W'); if (34 - absX >= dMin) validDirs.push('E');
+                    if (validDirs.length > 0) {
+                        let dir = validDirs[Math.floor(Math.random()*validDirs.length)], rand = Math.random(), vBonus;
+                        if(rand < 0.05) vBonus = Math.floor(Math.random()*(125-100+1))+100;
+                        else if (rand < 0.3) vBonus = Math.floor(Math.random()*(99-50+1))+50;
+                        else vBonus = Math.floor(Math.random()*(49-20+1))+20;
+                        cardArr.push({id: cardsGenerated, inf, reqAmmo: ammo, distMin: dMin, distMax: dMax, dir, vBonus, active: false});
+                        cardsGenerated++;
+                    }
+                }
+            }
+            if (cardArr === gameState.fireCallCards) renderFireCallCards();
+        }
+
+        function renderFireCallCards() {
+            let container = document.getElementById('fire-calling-container'); container.innerHTML = '';
+            if(gameState.fireCallCards.length === 0) {
+                let aliveINF = gameState.playerUnits.filter(u => u.code === 'INF' && u.hp > 0).length;
+                container.innerHTML = aliveINF === 0 ? `<div class="text-[8px] text-red-400 font-bold text-center mt-1">ALL INF DESTROYED.</div>` : `<div class="text-[8px] text-gray-500 font-bold text-center mt-1">CARDS DONE.</div>`;
+                return;
+            }
+            gameState.fireCallCards.forEach((c) => {
+                let div = document.createElement('div');
+                div.className = `p-1 border rounded text-[8px] cursor-pointer transition-colors ${c.active ? 'bg-tactical-green/20 border-tactical-green' : 'bg-tactical-panel border-tactical-border'}`;
+                div.innerHTML = `<div class="flex justify-between text-tactical-green font-bold gap-1"><span>INF${c.inf.num}→${c.reqAmmo.id}</span><span class="${c.vBonus >= 100 ? 'text-red-400' : 'text-tactical-amber'}">+${c.vBonus}V</span></div>
+                    <div class="text-gray-400 flex justify-between"><span>D:${c.distMin}-${c.distMax}</span><span class="text-tactical-blue font-bold">${c.dir}</span></div>`;
+                div.onclick = () => {
+                    if(gameState.gameOver) return; gameState.fireCallCards.forEach(card => card.active = false); 
+                    c.active = true; gameState.selectedAmmo = ORDNANCE.find(o => o.id === c.reqAmmo.id);
+                    renderOrdnance(); validateFire(); renderFireCallCards();
+                }; container.appendChild(div);
+            });
+        }
+
+        function renderOrdnance() {
+            let container = document.getElementById('ordnance-list'); container.innerHTML = '';
+            ORDNANCE.forEach(ammo => {
+                let item = document.createElement('div');
+                item.className = `p-1 rounded border cursor-pointer flex justify-between items-center text-[8px] transition-colors ${gameState.selectedAmmo.id===ammo.id?'bg-tactical-green/20 border-tactical-green text-white':'bg-tactical-panel border-tactical-border text-gray-400'}`;
+                item.innerHTML = `<span class="truncate font-bold">${ammo.name} <span class="opacity-60 font-normal">[${ammo.r}]</span></span><span class="text-tactical-amber font-bold shrink-0 ml-1">${ammo.cost}V</span>`;
+                item.onclick = () => { if(gameState.gameOver) return; gameState.selectedAmmo = ammo; renderOrdnance(); validateFire(); };
+                container.appendChild(item);
+            });
+            if(gameState.selectedAmmo) document.getElementById('selected-ammo-cost').innerText = `COST: ${gameState.selectedAmmo.cost}V`;
+        }
+
+        // --- GRID RENDER ---
+        function renderMacroGrid() {
+            let container = document.getElementById('macro-grid-container'); container.innerHTML = '';
+            let sab = gameState.playerUnits.find(u => u.isSAB);
+
+            ROWS.forEach(r => {
+                COLS.forEach(c => {
+                    let key = `${c}${r}`, cell = document.createElement('div');
+                    cell.className = `grid-cell border rounded relative p-0.5 flex items-center justify-center transition-all duration-300 group bg-tactical-panel border-tactical-border`;
+                    
+                    if (gameState.activeTab === 'enemy') {
+                        let st = gameState.playerIntelMap[key] || 'fog'; 
+                        if (gameState.isScoutMode) cell.classList.add('hover:bg-amber-500/20', 'hover:border-amber-400');
+                        if (st === 'fog') cell.classList.add('opacity-80');
+                        else if (st === 'revealed') cell.classList.replace('bg-tactical-panel', 'bg-tactical-blue/20'), cell.classList.replace('border-tactical-border', 'border-tactical-blue');
+                        else if (st === 'hit') cell.classList.replace('bg-tactical-panel', 'bg-red-950/40'), cell.classList.replace('border-tactical-border', 'border-red-600/50');
+                        cell.innerHTML = `<span class="text-gray-600 font-bold text-[7px] absolute top-0.5 left-0.5 leading-none z-0">${key}</span>`;
+                        gameState.aiUnits.forEach(u => { if(u.col===c && u.row===r && u.hp>0 && u.scouted) cell.innerHTML += `<div class="absolute bg-amber-500 text-black font-bold text-[5px] px-0.5 rounded z-10" style="top:${15+u.y*14}%; left:${15+u.x*14}%">${u.code}</div>`; });
+                        if (gameState.aiCbtTarget && gameState.aiCbtTarget.col===c && gameState.aiCbtTarget.row===r) {
+                            cell.innerHTML += `<div class="absolute inset-0 border border-tactical-green animate-pulse rounded pointer-events-none flex items-center justify-center z-20"><i class="fa-solid fa-crosshairs text-tactical-green/50 text-sm"></i></div>`;
+                        }
+                    } else { // HOME
+                        let units = gameState.playerUnits.filter(u => u.col===c && u.row===r && u.hp>0);
+                        let html = `<span class="text-gray-600 absolute top-0.5 left-0.5 text-[7px] font-bold z-0 leading-none">${key}</span>`;
+                        
+                        let hasFogg = gameState.foggCells.some(f => f.col===c && f.row===r);
+                        if (hasFogg) html += `<div class="absolute inset-0 bg-white/20 blur-sm pointer-events-none z-10"></div>`;
+
+                        if (gameState.isDirMoveMode && sab && sab.hp>0) {
+                            let minMacDist = 999;
+                            for(let mx=0;mx<5;mx++) for(let my=0;my<5;my++) { let d = getDist(sab.col,sab.row,sab.x,sab.y,c,r,mx,my); if(d < minMacDist) minMacDist = d; }
+                            if (minMacDist <= 10) cell.classList.replace('border-tactical-border', 'border-tactical-green');
+                            else cell.classList.add('opacity-30');
+                        }
+
+                        if (units.length) {
+                            cell.classList.replace('bg-tactical-panel', 'bg-green-950/20');
+                            if(!gameState.isDirMoveMode) cell.classList.replace('border-tactical-border', 'border-tactical-green/40');
+                            const hasSAB = units.some(u => u.isSAB), groups = {};
+                            units.forEach(u => { const k = u.isSAB ? 'SAB' : u.code; if (!groups[k]) groups[k] = { count: 0, armored: u.armored }; groups[k].count++; });
+                            const entries = Object.entries(groups);
+                            
+                            html += `<div class="w-full h-full flex flex-col items-center justify-center gap-px mt-1 z-20 relative px-0.5">`;
+                            if (units.length === 1) {
+                                const u = units[0], lb = u.isSAB ? 'SAB' : `${u.code}${u.num}`;
+                                if (u.armored) html += `<div class="relative w-[15px] h-[15px] flex items-center justify-center text-[5px] font-bold text-amber-400"><svg class="absolute inset-0 w-full h-full text-amber-500/80" viewBox="0 0 24 24" fill="currentColor" stroke="#ffaa00" stroke-width="1.5"><polygon points="12 1 22 6.5 22 17.5 12 23 2 17.5 2 6.5"/></svg><span class="z-10 leading-none">${lb}</span></div>`;
+                                else html += `<div class="w-3.5 h-3.5 flex items-center justify-center border border-gray-400 text-[5px] text-gray-300 bg-gray-800 font-bold leading-none rounded-sm">${lb}</div>`;
+                            } else if (units.length <= 4) {
+                                html += `<div class="flex flex-wrap items-center justify-center gap-px">`;
+                                units.forEach(u => {
+                                    const lb = u.isSAB ? 'S' : u.code.charAt(0) + (u.num || ''), color = u.isSAB ? 'text-amber-300 border-amber-500 bg-amber-900/40' : u.armored ? 'text-amber-400 border-amber-600/50 bg-amber-950/30' : 'text-gray-300 border-gray-500 bg-gray-800';
+                                    html += `<span class="text-[5px] font-bold border px-0.5 leading-none rounded ${color}">${lb}</span>`;
+                                }); html += `</div>`;
+                            } else {
+                                if (hasSAB) html += `<span class="text-[6px] font-bold text-amber-300 leading-none">★SAB</span>`;
+                                html += `<div class="flex flex-wrap items-center justify-center gap-px">`;
+                                entries.filter(([k]) => k !== 'SAB').forEach(([code, g]) => { html += `<span class="text-[5px] font-bold ${g.armored ? 'text-amber-400' : 'text-gray-300'} leading-none">${code}${g.count > 1 ? g.count : ''}</span>`; });
+                                html += `</div><span class="text-[5px] text-tactical-green/80 leading-none">${units.length}u</span>`;
+                            }
+                            html += `</div>`;
+                        }
+                        if (gameState.playerCbtTarget && gameState.playerCbtTarget.col===c && gameState.playerCbtTarget.row===r) {
+                            html += `<div class="absolute inset-0 border border-red-500 animate-pulse rounded pointer-events-none flex items-center justify-center z-20"><i class="fa-solid fa-crosshairs text-red-500/50 text-sm"></i></div>`;
+                        }
+                        cell.innerHTML = html;
+                    }
+                    cell.onclick = () => { 
+                        if(gameState.gameOver) return; 
+                        if(gameState.isScoutMode && gameState.activeTab === 'enemy') { executeScoutScan(c, r); }
+                        else { openMicroPanel(c, r); }
+                    }; 
+                    container.appendChild(cell);
+                });
+            });
+        }
+
+        // --- MICRO PANEL ---
+        function openMicroPanel(col, row) {
+            gameState.selectedMacro = {col, row}; document.getElementById('micro-grid-id').innerText = `${col}${row}`;
+            document.getElementById('micro-panel').style.display = 'flex'; document.getElementById('micro-panel').classList.remove('hidden');
+            if(gameState.isDirMoveMode) document.getElementById('micro-hint').innerHTML = "<span class='text-tactical-green'>DIR MOVE: Nhấp vào ô xanh.</span>";
+            else document.getElementById('micro-hint').innerText = "Chọn tọa độ Vi mô 1x1.";
+            renderMicroGrid();
+        }
+        function closeMicroPanel() { document.getElementById('micro-panel').classList.add('hidden'); document.getElementById('micro-panel').style.display = 'none'; }
+
+        function renderMicroGrid() {
+            let container = document.getElementById('micro-grid-container'); container.innerHTML = '';
+            let {col, row} = gameState.selectedMacro, sab = gameState.playerUnits.find(u => u.isSAB);
+
+            for (let y=0; y<5; y++) {
+                for (let x=0; x<5; x++) {
+                    let cell = document.createElement('div');
+                    cell.className = `border rounded flex items-center justify-center cursor-pointer text-[10px] bg-tactical-panel relative`;
+                    
+                    let isFogg = gameState.foggCells.some(f => f.col===col && f.row===row && f.x===x && f.y===y);
+                    if(isFogg) cell.innerHTML += `<div class="absolute inset-0 bg-white/30 blur pointer-events-none"></div>`;
+
+                    if (gameState.isDirMoveMode && gameState.activeTab === 'home' && sab) {
+                        let d = getDist(sab.col, sab.row, sab.x, sab.y, col, row, x, y);
+                        if (d <= 10) { cell.classList.add('border-tactical-green', 'bg-green-900/40', 'hover:bg-tactical-green/60'); cell.innerHTML += `<span class="text-tactical-green font-bold z-10">${x}:${y}</span>`; }
+                        else { cell.classList.add('border-tactical-border', 'opacity-30', 'pointer-events-none'); cell.innerHTML += `<span class="text-gray-600 z-10">${x}:${y}</span>`; }
+                    } else {
+                        cell.classList.add('border-tactical-border', 'hover:border-tactical-green');
+                        if (gameState.activeTab === 'home') {
+                            let u = gameState.playerUnits.find(u=>u.col===col&&u.row===row&&u.x===x&&u.y===y&&u.hp>0);
+                            if (u) { cell.classList.add('bg-tactical-green/20','border-tactical-green','text-tactical-green'); cell.innerHTML+=`<b class="z-10">${u.code}</b>`; }
+                            else cell.innerHTML+=`<span class="text-gray-600 z-10">${x}:${y}</span>`;
+                        } else {
+                            let scouted = gameState.aiUnits.find(u=>u.col===col&&u.row===row&&u.x===x&&u.y===y&&u.hp>0&&u.scouted);
+                            if (scouted) { cell.classList.add('bg-amber-500/30','border-amber-400','text-amber-300'); cell.innerHTML+=`<b class="z-10">${scouted.code}</b>`; }
+                            else cell.innerHTML+=`<span class="text-gray-600 z-10">${x}:${y}</span>`;
+                        }
+                    }
+                    cell.onclick = (e) => { e.stopPropagation(); if(!gameState.gameOver) selectMicroCell(x, y); }; container.appendChild(cell);
+                }
+            }
+        }
+
+        function selectMicroCell(x, y) {
+            let {col, row} = gameState.selectedMacro;
+            if (gameState.isDirMoveMode && gameState.activeTab === 'home') {
+                let sab = gameState.playerUnits.find(u => u.isSAB);
+                if(sab && sab.hp>0) {
+                    gameState.playerV -= 10; sab.col = col; sab.row = row; sab.x = x; sab.y = y;
+                    log(`> [MOVE] SAB DIR nhảy tới ${col}${row} [${x}:${y}].`);
+                    logOpponent(`> [INTEL] Địch vừa thực hiện di tản chiến thuật (DIR).`);
+                    startDirMove();
+                }
+                closeMicroPanel(); updateUI(); renderMacroGrid(); return;
+            }
+            if (gameState.activeTab === 'home') {
+                let units = gameState.playerUnits.filter(u=>u.col===col&&u.row===row&&u.x===x&&u.y===y&&u.hp>0);
+                if(units.length > 0) {
+                    let uNames = units.map(u => u.isSAB ? 'SAB(Giáp)' : `${u.code}${u.armored?'(Giáp)':''}`).join(', ');
+                    log(`> [KIỂM QUÂN] ${col}${row} [${x}:${y}] - Trú quân: <span class="text-amber-400">${uNames}</span>`);
+                } else log(`> [KIỂM QUÂN] ${col}${row} [${x}:${y}] - Trống.`);
+            }
+
+            document.getElementById('selected-micro-coord').innerText = `TARGET: ${col}${row} [${x}:${y}]`;
+            let consoleDiv = document.getElementById('targeting-console');
+            if (!consoleDiv.classList.contains('hidden')) {
+                document.getElementById('input-macro').value = `${col}${row}`;
+                document.getElementById('input-micro').value = `${x}:${y}`;
+                validateFire();
+            }
+            setTimeout(closeMicroPanel, 400);
+        }
+
+        // --- COMBAT LOGIC ---
+        function toggleTargeting() {
+            if(gameState.gameOver) return;
+            let con = document.getElementById('targeting-console'), btn = document.getElementById('btn-prepare-fire');
+            if(con.classList.contains('hidden')) { 
+                con.classList.remove('hidden'); btn.classList.add('bg-tactical-green', 'text-black', 'border-tactical-green'); btn.classList.replace('text-gray-400','text-black'); btn.innerHTML = "<i class='fa-solid fa-power-off'></i> [ TARGETING ACTIVE ]";
+            } else { 
+                con.classList.add('hidden'); btn.classList.remove('bg-tactical-green', 'text-black', 'border-tactical-green'); btn.classList.replace('text-black','text-gray-400'); btn.innerHTML = "<i class='fa-solid fa-power-off'></i> [ PREPARE FIRE ]";
+            }
+        }
+
+        function validateFire() {
+            if (gameState.gameOver) return;
+            const btn = document.getElementById('btn-fire'), mac = document.getElementById('input-macro').value.toUpperCase(), mic = document.getElementById('input-micro').value;
+            if (/^[1-7][A-J]$/.test(mac) && /^[0-4]:[0-4]$/.test(mic) && gameState.selectedAmmo && gameState.shotsLeft > 0) { btn.disabled = false; btn.className = "w-full mt-1 py-2 font-bold uppercase tracking-widest rounded-sm btn-fire-ready text-[10px]"; }
+            else { btn.disabled = true; btn.className = "w-full mt-1 py-2 bg-gray-800 text-gray-600 font-bold border border-gray-700 transition-all duration-300 cursor-not-allowed uppercase tracking-widest rounded-sm text-[10px]"; }
+        }
+
+        function evaluateHit(ammo, u, tx, ty, tCol, tRow) {
+            if(u.col !== tCol || u.row !== tRow) return 'NONE';
+            if(ammo.id === 'LUMN' || ammo.id === 'FOGG') return 'NONE'; 
+            if(ammo.r === 'Macro') return (ammo.category === 'Armor' || ammo.id === 'ZERO') ? 'AP' : 'HE';
+            
+            let dx = Math.abs(u.x - tx), dy = Math.abs(u.y - ty);
+            if(ammo.id === 'APHE') { if(dx === 0 && dy === 0) return 'AP'; if(dx <= 1 && dy <= 1) return 'HE'; }
+            else if(ammo.id === 'SEIS') { if(dx <= 1 && dy <= 1) return 'AP'; if(dx <= 2 && dy <= 2) return 'HE'; }
+            else if(ammo.r === '3x3') { if(dx <= 1 && dy <= 1) return (ammo.category === 'Armor') ? 'AP' : 'HE'; }
+            else if(ammo.r === '1x1' || ammo.id === 'SOND') { if(dx === 0 && dy === 0) return (ammo.category === 'Armor') ? 'AP' : 'HE'; }
+            return 'NONE';
+        }
+
+        function executeManualFire() {
+            if(gameState.gameOver || document.getElementById('btn-fire').disabled) return;
+            gameState.passiveTurns = 0; if(tutorialTimeout) clearTimeout(tutorialTimeout); 
+
+            let col = parseInt(document.getElementById('input-macro').value[0]), row = document.getElementById('input-macro').value[1].toUpperCase();
+            let x = parseInt(document.getElementById('input-micro').value[0]), y = parseInt(document.getElementById('input-micro').value[2]);
+            let ammo = gameState.selectedAmmo;
+
+            if (ammo.id === 'LUMN') {
+                let enemyAA = gameState.aiUnits.filter(u => u.code === 'AA' && u.hp > 0).length;
+                if (enemyAA > 0) return showModal("DENIED", `Phải tiêu diệt toàn bộ AA địch (còn ${enemyAA}) mới được bắn LUMN!`, "fa-plane-slash");
+            }
+
+            if (gameState.playerV < ammo.cost) return showModal("FUNDS LOW", `Cần ${ammo.cost}V.`, "fa-coins");
+            gameState.playerV -= ammo.cost; gameState.shotsLeft--;
+
+            let cIdx = gameState.fireCallCards.findIndex(c => c.active);
+            if(cIdx !== -1) {
+                let c = gameState.fireCallCards[cIdx], d = getDist(c.inf.col, c.inf.row, c.inf.x, c.inf.y, col, row, x, y), hitDir = getDirection(c.inf.col, c.inf.row, c.inf.x, c.inf.y, col, row, x, y);
+                if (c.reqAmmo.id === ammo.id && d >= c.distMin && d <= c.distMax && hitDir === c.dir) {
+                    gameState.playerV += c.vBonus; log(`[BONUS] Fire Call Perfect: +${c.vBonus}V!`);
+                    gameState.fireCallCards.splice(cIdx, 1); renderFireCallCards();
+                }
+            }
+
+            gameState.playerIntelMap[`${col}${row}`] = 'hit';
+            
+            if (ammo.id === 'FOGG') {
+                let p = 0;
+                gameState.playerUnits.forEach(u => {
+                    if (!u.isSAB && u.hp>0 && Math.abs(COLS.indexOf(u.col)-COLS.indexOf(col))<=1 && Math.abs(ROWS.indexOf(u.row)-ROWS.indexOf(row))<=1) { u.col=col; u.row=row; u.x=x; u.y=y; p++; }
+                }); 
+                gameState.foggCells.push({col, row, x, y, turn: gameState.turn});
+                log(`> [TACTICAL] FOGG Smoke rải tại ${col}${row}. ${p} units di tản.`);
+                logOpponent(`> [CẢNH BÁO] Địch thả khói FOGG ngụy trang tại ô ${col}${row}!`);
+            } else if (ammo.id === 'LUMN') {
+                gameState.playerIntelMap[`${col}${row}`] = 'revealed';
+                gameState.aiUnits.forEach(u => { if (u.col === col && u.row === row && u.hp > 0) u.scouted = true; });
+                showModal("LUMN FLARE", `Pháo sáng đã rọi rõ toàn bộ sinh lực địch tại khu vực ${col}${row}.`, "fa-lightbulb"); 
+                log(`> [RECON] Pháo sáng LUMN đã soi rõ ô Macro ${col}${row}.`);
+                logOpponent(`> [CẢNH BÁO] Pháo sáng LUMN của địch rọi thẳng xuống ${col}${row}! Bị lộ vị trí.`);
+            } else if (ammo.id === 'ZERO') {
+                log(`> [DOOMSDAY] Kích hoạt ZERO Nuke! Toàn bộ khu vực bị xóa sổ.`);
+                logOpponent(`> [CẢNH BÁO TỐI CAO] KẺ ĐỊCH KÍCH HOẠT NÚI LỬA ZERO! TẤT CẢ KẾT THÚC.`);
+                gameState.aiUnits.forEach(u => u.hp = 0); // Diệt sạch toàn bộ địch, bao gồm cả SAB
+                gameState.gameOver = true;
+                updateUI(); renderMacroGrid();
+                showModal("DOOMSDAY VICTORY", "Vũ khí hủy diệt ZERO đã quét sạch chiến trường. CHIẾN THẮNG TUYỆT ĐỐI!", "fa-radiation");
+                return;
+            } else if (ammo.id === 'SOND') {
+                let md=999; gameState.aiUnits.forEach(u=>{if(u.hp>0) md=Math.min(md, getDist(col,row,x,y,u.col,u.row,u.x,u.y))});
+                showModal("SOND PROBE", `Sóng radar đánh vào ${col}${row}. Khoảng cách tín hiệu địch ~${Math.round(md)} ô.`, "fa-satellite"); 
+                log(`> [RECON] SOND quét từ ${col}${row} [${x}:${y}]. Tín hiệu địch ~${Math.round(md)} ô.`);
+                logOpponent(`> [CẢNH BÁO] Sóng SOND của địch vừa rà quét quanh khu vực ${col}${row}.`);
+            } else {
+                let hits = 0, apHits = 0;
+                gameState.aiUnits.forEach(u => {
+                    if(u.hp<=0) return;
+                    let hitType = evaluateHit(ammo, u, x, y, col, row);
+                    if(hitType !== 'NONE') {
+                        if (u.armored) {
+                            if (hitType === 'AP') {
+                                let dmg = (ammo.id==='SEIS' && u.isSAB) ? 3 : 1; u.hp -= dmg; hits++; apHits++;
+                                if(u.hp<=0) gameState.playerV += u.isSAB?100:30; 
+                            }
+                        } else {
+                            u.hp -= 1; hits++; if(u.hp<=0) gameState.playerV += 30; 
+                        }
+                    }
+                });
+                log(`> [STRIKE] ${ammo.id} - ${col}${row} - [${x}:${y}] | Hits: ${hits} (AP: ${apHits})`);
+                logOpponent(`> [BỊ TẤN CÔNG] Địch nã ${ammo.id} vào ${col}${row} [${x}:${y}] | Phe ta chịu đòn: ${hits}`);
+            }
+
+            processKillChainDependencies();
+            let sab = gameState.playerUnits.find(u=>u.isSAB);
+            if(!gameState.playerCbtTarget && sab && sab.hp > 0) { 
+                gameState.playerCbtTarget = {col: sab.col, row: sab.row, x: sab.x, y: sab.y, turn: 2}; 
+                log(`[ALERT] CBT Địch đã khóa tọa độ khai hỏa của ta! Rơi sau 2 Turn.`); 
+            }
+
+            document.getElementById('input-macro').value = ''; document.getElementById('input-micro').value = '';
+            validateFire(); updateUI(); renderMacroGrid(); checkWin();
+        }
+
+        // --- ACTIONS ---
+        function executeForwardObserver() {
+            if(gameState.gameOver) return;
+            if(gameState.playerV<1) return showModal("FUNDS LOW", "FO cần 1V.", "fa-coins");
+            if(!gameState.selectedMacro) return showModal("SELECT GRID", "Bấm chọn 1 ô Macro làm tâm trước.", "fa-crosshairs");
+            gameState.playerV-=1; let {col,row} = gameState.selectedMacro, md=999;
+            gameState.aiUnits.forEach(u => { if(u.hp>0) md=Math.min(md, getDist(col,row,2,2,u.col,u.row,u.x,u.y)); });
+            gameState.playerIntelMap[`${col}${row}`] = 'revealed';
+            showModal("FORWARD OBSERVER", `Quét tại ${col}${row}. Khoảng cách tín hiệu ~${Math.round(md)} ô.`, "fa-binoculars");
+            log(`> [RECON] FO rà soát ${col}${row}. Mục tiêu cách ~${Math.round(md)} ô.`);
+            logOpponent(`> [INTEL] Trinh sát FO địch đang dò xét quanh khu vực ${col}${row}.`);
+            updateUI(); renderMacroGrid();
+        }
+
+        function startScoutPlane() {
+            if(gameState.gameOver) return;
+            let enemyAA = gameState.aiUnits.filter(u => u.code === 'AA' && u.hp > 0).length;
+            if (enemyAA > 0) return showModal("DENIED", `Phải tiêu diệt toàn bộ AA địch (còn ${enemyAA}) mới được gọi máy bay!`, "fa-plane-slash");
+            if(gameState.playerV < 60) return showModal("FUNDS LOW", "Scout cần 60V.", "fa-coins");
+
+            gameState.isScoutMode = !gameState.isScoutMode;
+            let btn = document.getElementById('btn-scout');
+            if(gameState.isScoutMode) { 
+                btn.classList.add('bg-amber-500/40','border-amber-400'); 
+                gameState.scoutClicksLeft = 2; 
+                gameState.playerV -= 60; 
+                switchMap('enemy'); 
+                log(`> [SCOUT] Đã cất cánh! Bấm chọn vùng trống trên bản đồ địch để rải thảm 5x3 (${gameState.scoutClicksLeft} lần).`); 
+            } else { 
+                btn.classList.remove('bg-amber-500/40','border-amber-400'); 
+            }
+            updateUI(); renderMacroGrid();
+        }
+
+        function executeScoutScan(col, row) {
+            let startCIdx = COLS.indexOf(parseInt(col)), startRIdx = ROWS.indexOf(row);
+            let rCount = 0;
+            for(let c = startCIdx; c < startCIdx + 3 && c < COLS.length; c++) {
+                for(let r = startRIdx; r < startRIdx + 5 && r < ROWS.length; r++) {
+                    let key = `${COLS[c]}${ROWS[r]}`;
+                    gameState.playerIntelMap[key] = 'revealed';
+                    gameState.aiUnits.forEach(u => { if (u.col == COLS[c] && u.row == ROWS[r]) u.scouted = true; });
+                    rCount++;
+                }
+            }
+            gameState.scoutClicksLeft--;
+            log(`> [RECON] Rải thảm 5x3 từ ${col}${row} (${rCount} ô). Còn ${gameState.scoutClicksLeft} lần bấm.`);
+            logOpponent(`> [CẢNH BÁO] Không phận bị xâm phạm! Scout địch rải thảm tại ${col}${row}.`);
+            
+            if (gameState.scoutClicksLeft <= 0) {
+                gameState.isScoutMode = false;
+                document.getElementById('btn-scout').classList.remove('bg-amber-500/40','border-amber-400');
+                log(`> [RECON] Scout Plane hoàn thành nhiệm vụ và rút lui.`);
+            }
+            updateUI(); renderMacroGrid();
+        }
+
+        function startDirMove() {
+            if(gameState.gameOver) return;
+            let sab = gameState.playerUnits.find(u=>u.isSAB);
+            if(!sab||sab.hp<=0) return showModal("SAB OFFLINE", "Strategic Artillery Battery đã nổ tung.", "fa-skull");
+            if(gameState.playerV<10) return showModal("FUNDS LOW", "Cần 10V.", "fa-coins");
+            gameState.isDirMoveMode = !gameState.isDirMoveMode;
+            let btn = document.getElementById('btn-dir-move');
+            if(gameState.isDirMoveMode) { btn.classList.add('bg-tactical-green/40','border-tactical-green'); switchMap('home'); log(`[MOVE] DIR ACTIVE: Chọn ô xanh để nhảy.`); }
+            else btn.classList.remove('bg-tactical-green/40','border-tactical-green');
+            renderMacroGrid();
+        }
+
+        function executeEvac() {
+            if(gameState.gameOver) return;
+            let sab = gameState.playerUnits.find(u=>u.isSAB);
+            if(!sab||sab.hp<=0) return showModal("SAB OFFLINE", "Strategic Artillery Battery đã nổ tung.", "fa-skull");
+            if(gameState.playerV<65) return showModal("FUNDS LOW", "Cần 65V.", "fa-coins");
+            gameState.playerV-=65; sab.col=COLS[Math.floor(Math.random()*COLS.length)]; sab.row=ROWS[Math.floor(Math.random()*ROWS.length)];
+            sab.x=Math.floor(Math.random()*5); sab.y=Math.floor(Math.random()*5);
+            gameState.playerCbtTarget = null; 
+            log(`> [MOVE] SAB EVAC khẩn cấp tới ${sab.col}${sab.row} [${sab.x}:${sab.y}]. Mất dấu CBT địch!`); 
+            logOpponent(`> [INTEL] Tín hiệu SAB địch biến mất! (Nghi ngờ dùng EVAC).`);
+            updateUI(); renderMacroGrid();
+        }
+
+        // --- END TURN & AI LOGIC ---
+        function endTurn() {
+            if(gameState.gameOver) return;
+            if(tutorialTimeout) clearTimeout(tutorialTimeout);
+
+            if(gameState.shotsLeft === 2) gameState.passiveTurns++; else gameState.passiveTurns = 0;
+            if(gameState.passiveTurns >= 3) return showModal("COURT-MARTIAL", "Truất quyền chỉ huy do rùa bò (Turtling). THUA CỘC.", "fa-gavel");
+            let aliveINF = gameState.playerUnits.filter(u=>u.code==='INF'&&u.hp>0).length;
+            if(gameState.playerV < 8 && aliveINF === 0) return showModal("BANKRUPT", "Hết tiền & mất sạch Bộ binh. THUA CỘC.", "fa-coins");
+
+            processCbtImpact(gameState.playerCbtTarget, gameState.playerUnits, gameState.aiUnits, "Sân nhà");
+            if(gameState.playerCbtTarget && gameState.playerCbtTarget.turn <= 0) gameState.playerCbtTarget = null;
+            processKillChainDependencies(); checkWin(); if(gameState.gameOver) return;
+
+            if (sys.mode === 'bot') {
+                aiTurnAction();
+                processCbtImpact(gameState.aiCbtTarget, gameState.aiUnits, gameState.playerUnits, "Sân địch");
+                if(gameState.aiCbtTarget && gameState.aiCbtTarget.turn <= 0) gameState.aiCbtTarget = null;
+                
+                processKillChainDependencies(); checkWin(); if(gameState.gameOver) return;
+                
+                gameState.foggCells = gameState.foggCells.filter(f => f.turn === gameState.turn); 
+                gameState.turn++; gameState.shotsLeft=2; 
+                genFireCards(gameState.playerUnits, gameState.fireCallCards); updateUI(); renderMacroGrid(); 
+                log(`--- Lượt ${gameState.turn} ---`);
+            } else {
+                showPrivacyCurtain();
+            }
+        }
+
+        function processCbtImpact(targetObj, targetUnits, shooterUnits, sectorName) {
+            if(!targetObj) return;
+            targetObj.turn--;
+            if(targetObj.turn <= 0) {
+                let artCount = shooterUnits.filter(u=>u.code==='ART'&&u.hp>0).length;
+                log(`> [CBT STRIKE] Tên lửa dội xuống ${sectorName}!`);
+                let totalHits = 0;
+                if(artCount > 0) {
+                    targetUnits.forEach(u => {
+                        if(u.hp>0 && u.col===targetObj.col && u.row===targetObj.row && u.x===targetObj.x && u.y===targetObj.y) {
+                            u.hp -= artCount; totalHits++;
+                            log(`> [CRITICAL] CBT tàn phá ${artCount} HP của ${u.code}!`);
+                        }
+                    });
+                    logOpponent(`> [KẾT QUẢ CBT] Phản pháo phe ta rơi trúng ${targetObj.col}${targetObj.row} [${targetObj.x}:${targetObj.y}]. Trúng địch: ${totalHits} units.`);
+                } else {
+                    log(`> [CBT MISSED] Kẻ địch mất sạch ART. Sát thương bằng 0.`);
+                    logOpponent(`> [KẾT QUẢ CBT] Phản pháo thất bại do phe ta không còn ART.`);
+                }
+            }
+        }
+
+        function aiTurnAction() {
+            if(gameState.gameOver) return;
+            let aiSab = gameState.aiUnits.find(u => u.isSAB && u.hp > 0);
+            if (gameState.aiCbtTarget && gameState.aiCbtTarget.turn === 1 && aiSab && gameState.aiV >= 10) {
+                gameState.aiV -= 10; let moved = false;
+                while(!moved) {
+                    let col = COLS[Math.floor(Math.random()*COLS.length)], row = ROWS[Math.floor(Math.random()*ROWS.length)];
+                    let x = Math.floor(Math.random()*5), y = Math.floor(Math.random()*5);
+                    if (getDist(aiSab.col, aiSab.row, aiSab.x, aiSab.y, col, row, x, y) <= 10) { aiSab.col = col; aiSab.row = row; aiSab.x = x; aiSab.y = y; moved = true; }
+                }
+                gameState.aiCbtTarget = null; log(`> [INTEL] Địch nhảy DIR né tránh đạn! Mất dấu.`);
+            }
+
+            for(let shots=0; shots<2; shots++) {
+                let affordable = ORDNANCE.filter(o => o.cost <= gameState.aiV && !['ZERO','SOND','FOGG','LUMN'].includes(o.id));
+                if (affordable.length === 0) continue;
+                let ammo = affordable[Math.floor(Math.random() * affordable.length)];
+                if (gameState.aiV >= 50 && Math.random() > 0.5) {
+                    let premium = affordable.filter(o => o.cost >= 15);
+                    if (premium.length > 0) ammo = premium[Math.floor(Math.random() * premium.length)];
+                }
+                gameState.aiV -= ammo.cost;
+                let targetCol, targetRow, targetX, targetY;
+
+                if (gameState.foggCells.length > 0 && Math.random() < 0.2) {
+                    let decoy = gameState.foggCells[Math.floor(Math.random()*gameState.foggCells.length)];
+                    targetCol = decoy.col; targetRow = decoy.row; targetX = decoy.x; targetY = decoy.y;
+                    log(`> [ECM] Địch bị nhiễu radar! Trút đạn nhầm vào vùng khói giả.`);
+                } else if(gameState.aiMemory.length > 0 && Math.random() > 0.3) {
+                    let lastHit = gameState.aiMemory[Math.floor(Math.random() * gameState.aiMemory.length)];
+                    targetCol = lastHit.col; targetRow = lastHit.row;
+                    targetX = Math.min(4, Math.max(0, lastHit.x + Math.floor(Math.random()*3) - 1));
+                    targetY = Math.min(4, Math.max(0, lastHit.y + Math.floor(Math.random()*3) - 1));
+                } else {
+                    targetCol = COLS[Math.floor(Math.random()*COLS.length)]; targetRow = ROWS[Math.floor(Math.random()*ROWS.length)];
+                    targetX = Math.floor(Math.random()*5); targetY = Math.floor(Math.random()*5);
+                }
+
+                let hits = 0;
+                gameState.playerUnits.forEach(u => {
+                    if(u.hp<=0) return;
+                    let hitType = evaluateHit(ammo, u, targetX, targetY, targetCol, targetRow);
+                    if(hitType !== 'NONE') {
+                        if (u.armored) {
+                            if (hitType === 'AP') {
+                                let dmg = (ammo.id==='SEIS' && u.isSAB) ? 3 : 1; u.hp -= dmg; hits++;
+                                gameState.aiMemory.push({col: u.col, row: u.row, x: u.x, y: u.y}); if (gameState.aiMemory.length > 5) gameState.aiMemory.shift();
+                            }
+                        } else {
+                            u.hp -= 1; hits++; 
+                            gameState.aiMemory.push({col: u.col, row: u.row, x: u.x, y: u.y}); if (gameState.aiMemory.length > 5) gameState.aiMemory.shift();
+                        }
+                    }
+                });
+                if(hits === 0 && gameState.aiMemory.length > 0 && Math.random() > 0.5) gameState.aiMemory.shift();
+
+                log(`> [AI FIRE] ${ammo.id} - ${targetCol}${targetRow} - [${targetX}:${targetY}] | Hits: ${hits}`);
+                processKillChainDependencies(); checkWin(); if(gameState.gameOver) return;
+
+                if(!gameState.aiCbtTarget && aiSab && aiSab.hp > 0) {
+                    gameState.aiCbtTarget = {col: aiSab.col, row: aiSab.row, x: aiSab.x, y: aiSab.y, turn: 2};
+                    log(`> [CBT AUTO] Radar địch bắt sóng! Đạn CBT địch sẽ rơi sau 2 Lượt.`);
+                }
+            }
+        }
+
+        // --- PaP SWAP DATA ---
+        function showPrivacyCurtain() {
+            let nextPlayer = sys.currentPlayer === 1 ? 2 : 1;
+            document.getElementById('curtain-title').innerText = `CHUYỂN GIAO THIẾT BỊ CHO P${nextPlayer}`;
+            document.getElementById('curtain-pin').value = '';
+            document.getElementById('curtain-error').classList.add('hidden');
+            document.getElementById('curtain-modal').classList.remove('hidden');
+        }
+        function unlockCurtain() {
+            let nextPlayer = sys.currentPlayer === 1 ? 2 : 1, pinInput = document.getElementById('curtain-pin').value.trim();
+            let correctPin = nextPlayer === 1 ? sys.p1Pin : sys.p2Pin;
+            if (pinInput === correctPin || correctPin === '') {
+                document.getElementById('curtain-modal').classList.add('hidden');
+                let temp = {
+                    units: gameState.playerUnits, v: gameState.playerV, cbt: gameState.playerCbtTarget,
+                    intel: gameState.playerIntelMap, mem: gameState.playerMemory, cards: gameState.fireCallCards,
+                    fdc: gameState.lastPlayerFDC, rec: gameState.lastPlayerRECON
+                };
+                gameState.playerUnits = gameState.aiUnits; gameState.playerV = gameState.aiV; gameState.playerCbtTarget = gameState.aiCbtTarget;
+                gameState.playerIntelMap = gameState.aiIntelMap; gameState.playerMemory = gameState.aiMemory; gameState.fireCallCards = gameState.aiCards;
+                gameState.lastPlayerFDC = gameState.lastAiFDC; gameState.lastPlayerRECON = gameState.lastAiRECON;
+                
+                gameState.aiUnits = temp.units; gameState.aiV = temp.v; gameState.aiCbtTarget = temp.cbt;
+                gameState.aiIntelMap = temp.intel; gameState.aiMemory = temp.mem; gameState.aiCards = temp.cards;
+                gameState.lastAiFDC = temp.fdc; gameState.lastAiRECON = temp.rec;
+
+                sys.currentPlayer = nextPlayer;
+                if (sys.currentPlayer === 1) gameState.turn++;
+                gameState.shotsLeft = 2; gameState.foggCells = gameState.foggCells.filter(f => f.turn === gameState.turn);
+                gameState.isScoutMode = false;
+                
+                document.getElementById('header-title').innerText = `FAF: CBW (P${sys.currentPlayer})`;
+                switchMap('enemy'); genFireCards(gameState.playerUnits, gameState.fireCallCards); updateUI(); renderMacroGrid(); renderLogbook();
+                log(`--- Lượt ${gameState.turn} - PLAYER ${sys.currentPlayer} ---`);
+            } else { document.getElementById('curtain-error').classList.remove('hidden'); }
+        }
+
+        // --- UTILS ---
+        function processKillChainDependencies() {
+            let pFDC = gameState.playerUnits.filter(u => u.code==='FDC' && u.hp>0).length;
+            if (pFDC < gameState.lastPlayerFDC) { 
+                log(`> [CRITICAL] FDC phe ta nổ! Hủy lệnh phản pháo của ta.`); 
+                gameState.aiCbtTarget = null; 
+            }
+            gameState.lastPlayerFDC = pFDC;
+            
+            let pREC = gameState.playerUnits.filter(u => u.code==='REC' && u.hp>0).length;
+            if (pREC < gameState.lastPlayerRECON) { 
+                log(`> [CRITICAL] RECON phe ta nổ! Lệnh phản pháo của ta bị delay (+1 Turn).`); 
+                if (gameState.aiCbtTarget) gameState.aiCbtTarget.turn += 1; 
+            }
+            gameState.lastPlayerRECON = pREC;
+            
+            let aFDC = gameState.aiUnits.filter(u => u.code==='FDC' && u.hp>0).length;
+            if (aFDC < gameState.lastAiFDC) { 
+                log(`> [INTEL] Địch mất FDC! Lệnh phản pháo của địch bị hủy.`); 
+                gameState.playerCbtTarget = null; 
+            }
+            gameState.lastAiFDC = aFDC;
+            
+            let aREC = gameState.aiUnits.filter(u => u.code==='REC' && u.hp>0).length;
+            if (aREC < gameState.lastAiRECON) { 
+                log(`> [INTEL] Địch mất RECON! Lệnh phản pháo của địch bị delay (+1 Turn).`); 
+                if (gameState.playerCbtTarget) gameState.playerCbtTarget.turn += 1; 
+            }
+            gameState.lastAiRECON = aREC;
+        }
+
+        function switchMap(tab) {
+            gameState.activeTab=tab;
+            document.getElementById('tab-enemy').className = tab==='enemy' ? "px-2 py-1 rounded bg-tactical-red text-white font-bold border border-red-500/30 flex items-center gap-0.5 text-[9px]" : "px-2 py-1 rounded bg-tactical-panel text-gray-400 border border-tactical-border flex items-center gap-0.5 text-[9px]";
+            document.getElementById('tab-home').className = tab==='home' ? "px-2 py-1 rounded bg-tactical-green text-black font-bold border border-green-500/30 flex items-center gap-0.5 text-[9px]" : "px-2 py-1 rounded bg-tactical-panel text-gray-400 border border-tactical-border flex items-center gap-0.5 text-[9px]";
+            renderMacroGrid();
+        }
+
+        function updateUI() {
+            document.getElementById('player-v').innerText = gameState.playerV;
+            document.getElementById('shots-left').innerText = gameState.shotsLeft+'/2';
+            document.getElementById('turn-count').innerText = gameState.turn;
+            let sab=gameState.playerUnits.find(u=>u.isSAB); if(sab) document.getElementById('sab-hp').innerText = Math.max(0,sab.hp)+'/8';
+            let cbt=document.getElementById('cbt-status');
+            
+            if(gameState.playerCbtTarget) {
+                if (gameState.playerCbtTarget.turn === 1) {
+                    cbt.className="text-white font-bold text-[8px] bg-red-600 px-1 py-0.5 rounded border border-red-400 truncate max-w-[110px] cbt-fast shadow-[0_0_10px_rgba(220,38,38,1)]";
+                    cbt.innerHTML=`<i class="fa-solid fa-skull animate-ping"></i> CBT IN: 1`;
+                } else {
+                    cbt.className="text-red-400 font-bold text-[8px] bg-red-500/20 px-1 py-0.5 rounded border border-red-500/40 truncate max-w-[110px] cbt-slow";
+                    cbt.innerHTML=`<i class="fa-solid fa-triangle-exclamation"></i> CBT IN: ${gameState.playerCbtTarget.turn}`;
+                }
+            } else {
+                cbt.className="text-tactical-amber font-bold text-[8px] bg-amber-500/10 px-1 py-0.5 rounded border border-amber-500/20 truncate max-w-[110px]";
+                cbt.innerHTML=`<i class="fa-solid fa-clock-rotate-left"></i> CBT: CLEAR`;
+            }
+            validateFire();
+        }
+
+        function showModal(title, body, icon="fa-shield-cat") { 
+            document.getElementById('modal-title').innerText=title; document.getElementById('modal-body').innerText=body; 
+            document.getElementById('modal-icon').className=`fa-solid ${icon} text-4xl text-tactical-green drop-shadow-[0_0_10px_rgba(0,255,102,0.5)]`; 
+            let btn = document.getElementById('modal-close-btn');
+            if(gameState.gameOver) { btn.innerText = "RESTART OPERATION"; btn.className = "px-6 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded w-full tracking-widest uppercase shadow-lg shadow-red-900/50 mt-4"; btn.onclick = () => location.reload(); } 
+            else { btn.innerText = "ACKNOWLEDGE"; btn.className = "px-6 py-2 bg-tactical-green hover:bg-green-400 text-black font-bold rounded w-full tracking-widest uppercase shadow-lg shadow-green-900/50 mt-4"; btn.onclick = closeModal; }
+            document.getElementById('game-modal').classList.remove('hidden'); 
+        }
+        function closeModal() { document.getElementById('game-modal').classList.add('hidden'); }
+        
+        function checkWin() {
+            if(gameState.gameOver) return;
+            let aiSAB = gameState.aiUnits.find(u=>u.isSAB), mySAB = gameState.playerUnits.find(u=>u.isSAB);
+            let playerWins = aiSAB && aiSAB.hp <= 0, aiWins = mySAB && mySAB.hp <= 0;
+            if (playerWins && aiWins) { gameState.gameOver = true; updateUI(); renderMacroGrid(); showModal("MUTUAL DESTRUCTION", "Cả 2 SAB đều bị hủy diệt. HÒA.", "fa-skull-crossbones"); } 
+            else if (playerWins) { gameState.gameOver = true; updateUI(); renderMacroGrid(); showModal("DECISIVE VICTORY", "SAB Địch đã bị hủy diệt! CHIẾN THẮNG.", "fa-trophy"); } 
+            else if (aiWins) { gameState.gameOver = true; updateUI(); renderMacroGrid(); showModal("COMMAND DEFEAT", "SAB phe ta đã bị hủy diệt!", "fa-skull"); }
+        }
+    </script>
+</body>
+</html>
